@@ -1,12 +1,27 @@
-Here’s a simple pseudo-code version of your filters:
+class MockRCAObject:
+    def __init__(self, has_stamp=False, initial_stamp=None):
+        self.rca_reason = initial_stamp
+        self.has_stamp = has_stamp
 
-1. **Check if** the entity, counterparty, and counterparty location match predefined rules.  
-2. **Ensure** the confirmation status is "Suppressed".  
-3. **Filter out** records where drum confirmation status is "Unconfirmed" and type contains "LongForm" while our confirmation status is "AutoConfirmed".  
-4. **Exclude** records where the confirmation status is **not** in ("AutoConfirmed", "Confirmed", "Matched", "ManuallyMatched", "AdhocNetMatch", "EconomicAffirm").  
-5. **Exclude** records where buy or sell settlement status is **not** in ("OPEN", "VERI", "ACCEPT", "RECON").  
-6. **Ensure** the transaction is **not cancelled** (i.e., isCancelled is "False").  
-7. **Include** only records where the value date is **on or after today’s date**.  
-8. **Include** records where the amended date is later than the value date.  
+        # Simulated fields with setValue() method
+        self.QzDocsCaptureTime = self.MockField()
+        self.SourceCreatedTime = self.MockField()
+        self.TaskCreationAfterHours = self.MockField()
+        self.ValidatorsOnTask = self.MockField()
+        self.RcaStampField = self.MockField()  # Stores the RCA stamp
 
-This keeps the logic readable for non-coders while preserving the intent of your filters.
+    def RcaStamp(self):
+        """✅ Instead of returning a function, directly return the field object"""
+        return self.RcaStampField  # This object supports setValue()
+
+    def write(self):
+        """Simulate writing to a database"""
+        pass  
+
+    class MockField:
+        """A simple field class that supports setValue()"""
+        def __init__(self):
+            self.value = None
+
+        def setValue(self, value):
+            self.value = value
