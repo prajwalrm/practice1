@@ -1,0 +1,39 @@
+class MockRCAObject:
+    def __init__(self, has_stamp=False, initial_stamp=None):
+        self.qz_time = None
+        self.source_time = None
+        self.task_hours = None
+        self.rca_reason = initial_stamp
+        self.has_stamp = has_stamp
+        self.validators = None
+
+    def RcaStamp(self):
+        return self.rca_reason if self.has_stamp else None
+
+    def write(self):
+        pass  # Simulate database write operation
+
+    # Define proper methods instead of Field objects
+    def QzDocsCaptureTime(self):
+        return self.qz_time
+
+    def SourceCreatedTime(self):
+        return self.source_time
+
+    def TaskCreationAfterHours(self):
+        return self.task_hours
+
+    def RcaStamp_setValue(self, value):
+        self.rca_reason = value
+
+    def QzDocsCaptureTime_setValue(self, value):
+        self.qz_time = value
+
+    def SourceCreatedTime_setValue(self, value):
+        self.source_time = value
+
+    def TaskCreationAfterHours_setValue(self, value):
+        self.task_hours = value
+
+    def ValidatorsOnTask_setValue(self, value):
+        self.validators = value
