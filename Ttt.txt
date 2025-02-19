@@ -1,0 +1,142 @@
+import unittest
+from datetime import datetime, timedelta
+
+# Assuming the functions are part of a module named 'rca_module'
+from rca_module import setRegRCAReasonStamp, setFORegRCAStamp
+
+class TestRCAModule(unittest.TestCase):
+
+    def test_setRegRCAReasonStamp_credit_code(self):
+        # Create a parent task with a workflow
+        parent_task = MockTask()
+        workflow = MockWorkflow(instigating_event_object=parent_task)
+        task = MockTask(workflow=workflow)
+        readbj = MockReadbj(rcastamp='Null')
+        
+        # Call the function
+        setRegRCAReasonStamp(task, 0, readbj)
+        
+        # Assert the result
+        self.assertEqual(readbj.rcastamp, 'CREDIT_CODE')
+
+    def test_setRegRCAReasonStamp_tech_issue(self):
+        # Create a parent task with a workflow
+        parent_task = MockTask()
+        workflow = MockWorkflow(instigating_event_object=parent_task)
+        task = MockTask(workflow=workflow, open_subtask_statuses=['Technology Fix'], type='Awaiting Fix', query_team='Technology')
+        readbj = MockReadbj(rcastamp='Null')
+        
+        # Call the function
+        setRegRCAReasonStamp(task, 1, readbj)
+        
+        # Assert the result
+        self.assertEqual(readbj.rcastamp, 'TECH_ISSUE')
+
+    def test_setRegRCAReasonStamp_query(self):
+        # Create a parent task with a workflow
+        parent_task = MockTask()
+        workflow = MockWorkflow(instigating_event_object=parent_task)
+        task = MockTask(workflow=workflow, open_subtask_statuses=['Other Status'], type='Awaiting Fix', query_team='Other')
+        readbj = MockReadbj(rcastamp='Null')
+        
+        # Call the function
+        setRegRCAReasonStamp(task, 1, readbj)
+        
+        # Assert the result
+        self.assertEqual(readbj.rcastamp, 'QUERY')
+
+    def test_setRegRCAReasonStamp_qps_delay(self):
+        # Create a parent task with a workflow
+        parent_task = MockTask()
+        workflow = MockWorkflow(instigating_event_object=parent_task)
+        task = MockTask(workflow=workflow, open_subtask_statuses=[], type='Other')
+        readbj = MockReadbj(rcastamp='Null')
+        
+        # Call the function
+        setRegRCAReasonStamp(task, 1, readbj)
+        
+        # Assert the result
+        self.assertEqual(readbj.rcastamp, 'QPS_DELAY')
+
+    def test_setFORegRCAStamp_fo_delay(self):
+        # Create a task with a workflow
+        task = MockTask()
+        workflow = MockWorkflow(utc_capture_time=datetime.now())
+        readbij = MockReadbij(rcastamp=None)
+        
+        # Call the function
+        setFORegRCAStamp(task, readbij)
+        
+        # Assert the result
+        self.assertEqual(readbij.rcastamp, 'FO_DELAY')
+
+    def test_setFORegRCAStamp_null(self):
+        # Create a task with a workflow
+        task = MockTask()
+        workflow = MockWorkflow(utc_capture_time=datetime.now() - timedelta(hours=49))
+        readbij = MockReadbij(rcastamp=None)
+        
+        # Call the function
+        setFORegRCAStamp(task, readbij)
+        
+        # Assert the result
+        self.assertEqual(readbij.rcastamp, 'Null')
+
+class MockTask:
+    def __init__(self, workflow=None, open_subtask_statuses=None, type=None, query_team=None):
+        self.workflow = workflow
+        self.open_subtask_statuses = open_subtask_statuses
+        self.type = type
+        self.query_team = query_team
+
+    def Workflow(self):
+        return self.workflow
+
+    def OpenSubtaskStatuses(self):
+        return self.open_subtask_statuses
+
+    def Type(self):
+        return self.type
+
+    def QueryTeam(self):
+        return self.query_team
+
+class MockWorkflow:
+    def __init__(self, instigating_event_object=None, utc_capture_time=None):
+        self.instigating_event_object = instigating_event_object
+        self.utc_capture_time = utc_capture_time
+
+    def InstigatingEventObject(self):
+        return self.instigating_event_object
+
+    def UTCCaptureTime(self):
+        return self.utc_capture_time
+
+class MockReadbj:
+    def __init__(self, rcastamp):
+        self.rcastamp = rcastamp
+
+    def Rcastamp(self):
+        return self.rcastamp
+
+    def setValue(self, value):
+        self.rcastamp = value
+
+    def write(self):
+        pass
+
+class MockReadbij:
+    def __init__(self, rcastamp):
+        self.rcastamp = rcastamp
+
+    def Rcastamp(self):
+        return self.rcastamp
+
+    def setValue(self, value):
+        self.rcastamp = value
+
+    def write(self):
+        pass
+
+if __name__ == '__main__':
+    unittest.main()
