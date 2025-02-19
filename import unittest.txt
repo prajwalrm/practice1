@@ -1,0 +1,202 @@
+import unittest
+from datetime import datetime, timedelta
+
+# Function to be tested (from the first image)
+def setFORegRCAStamp(task, rcaObj):
+    rcaReasonType = None
+    parentTask = task.Workflow().InstigatingEventObject()
+    
+    if parentTask:
+        wf = parentTask.Workflow()
+        if not rcaObj.RcaStamp():
+            rcaObj.QzDocsCaptureTime.setValue(wf.UTCCaptureTime())
+            rcaObj.SourceCreatedTime.setValue(getSourceEventCreatedTime(task))
+            rcaObj.TaskCreationAfterHours.setValue(
+                ((wf.UTCCaptureTime() - getSourceEventCreatedTime(task)).total_seconds() / 3600)
+            )
+            if ((wf.UTCCaptureTime() - getSourceEventCreatedTime(task)).total_seconds() / 3600) > 8:
+                rcaReasonType = "FO_DELAY"
+            else:
+                rcaReasonType = "Null"
+
+            rcaObj.RcaStamp.setValue(rcaReasonType)
+            rcaObj.write()
+
+# Function to be tested (from the second image)
+def setRegRCAReasonStamp(task, eventAge, rcaObj):
+    rcaReasonType = None
+    parentTask = task.Workflow().InstigatingEventObject()
+
+    if parentTask:
+        wf = parentTask.Workflow()
+        if not rcaObj.RcaStamp() or rcaObj.RcaStamp() == 'Null':
+            if eventAge == 0:
+                if creditCodeValidatorExists(parentTask):
+                    rcaObj.ValidatorsOnTask.setValue(getValidatorsOnTask(parentTask))
+                    rcaReasonType = "CREDIT_CODE"
+                else:
+                    rcaReasonType = "Null"
+            elif "Technology Fix" in task.OpenSubtaskStatuses():
+                rcaReasonType = "TECH_ISSUE"
+            elif task.Type() == "Awaiting Fix":
+                if task.QueryTeam() == "Technology":
+                    rcaReasonType = "TECH_ISSUE"
+                else:
+                    rcaReasonType = "QUERY"
+            else:
+                rcaReasonType = "OPS_DELAY"
+
+            rcaObj.RcaStamp.setValue(rcaReasonType)
+            rcaObj.write()
+
+# Mock Task and ParentTask
+class MockWorkflow:
+    def __init__(self, capture_time):
+        self.capture_time = capture_time
+
+    def UTCCaptureTime(self):
+        return self.capture_time
+
+class MockTask:
+    def __init__(self, capture_time, task_type="General", query_team=None, subtasks=None):
+        self.workflow = MockWorkflow(capture_time)
+        self.task_type = task_type
+        self.query_team = query_team
+        self.subtasks = subtasks if subtasks else []
+
+    def Workflow(self):
+        return self.workflow
+
+    def Type(self):
+        return self.task_type
+
+    def QueryTeam(self):
+        return self.query_team
+
+    def OpenSubtaskStatuses(self):
+        return self.subtasks
+
+class MockParentTask:
+    def __init__(self, capture_time):
+        self.workflow = MockWorkflow(capture_time)
+
+    def Workflow(self):
+        return self.workflow
+
+# Mock RCA Object
+class MockRCAObject:
+    def __init__(self, has_stamp=False, initial_stamp=None):
+        self.qz_time = None
+        self.source_time = None
+        self.task_hours = None
+        self.rca_reason = initial_stamp
+        self.has_stamp = has_stamp
+
+    def RcaStamp(self):
+        return self.rca_reason if self.has_stamp else None
+
+    def write(self):
+        pass  # Simulating a database write operation
+
+    class Field:
+        def __init__(self, parent):
+            self.parent = parent
+
+        def setValue(self, value):
+            if self.parent:
+                setattr(self.parent, self.attr_name, value)
+
+    QzDocsCaptureTime = Field(None)
+    SourceCreatedTime = Field(None)
+    TaskCreationAfterHours = Field(None)
+    RcaStamp = Field(None)
+    ValidatorsOnTask = Field(None)
+
+    QzDocsCaptureTime.attr_name = "qz_time"
+    SourceCreatedTime.attr_name = "source_time"
+    TaskCreationAfterHours.attr_name = "task_hours"
+    RcaStamp.attr_name = "rca_reason"
+    ValidatorsOnTask.attr_name = "validators"
+
+# Mock function for `getSourceEventCreatedTime`
+def getSourceEventCreatedTime(task):
+    return task.Workflow().UTCCaptureTime() - timedelta(hours=10)  # Simulating a 10-hour gap
+
+# Mock function for `creditCodeValidatorExists`
+def creditCodeValidatorExists(parentTask):
+    return True  # Simulating that a credit code validator exists
+
+# Mock function for `getValidatorsOnTask`
+def getValidatorsOnTask(parentTask):
+    return "Validator_123"  # Simulating a validator name
+
+# Test Case
+class TestRCAFunctions(unittest.TestCase):
+    def test_fo_reg_rca_stamp_fo_delay(self):
+        task = MockTask(datetime.utcnow())
+        parent_task = MockParentTask(datetime.utcnow())
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setFORegRCAStamp(task, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "FO_DELAY")
+
+    def test_fo_reg_rca_stamp_null(self):
+        task = MockTask(datetime.utcnow())
+        parent_task = MockParentTask(datetime.utcnow() - timedelta(hours=5))
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setFORegRCAStamp(task, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "Null")
+
+    def test_reg_rca_reason_credit_code(self):
+        task = MockTask(datetime.utcnow())
+        parent_task = MockParentTask(datetime.utcnow())
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setRegRCAReasonStamp(task, 0, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "CREDIT_CODE")
+
+    def test_reg_rca_reason_tech_issue(self):
+        task = MockTask(datetime.utcnow(), subtasks=["Technology Fix"])
+        parent_task = MockParentTask(datetime.utcnow())
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setRegRCAReasonStamp(task, 5, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "TECH_ISSUE")
+
+    def test_reg_rca_reason_query(self):
+        task = MockTask(datetime.utcnow(), task_type="Awaiting Fix", query_team="Support")
+        parent_task = MockParentTask(datetime.utcnow())
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setRegRCAReasonStamp(task, 5, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "QUERY")
+
+    def test_reg_rca_reason_ops_delay(self):
+        task = MockTask(datetime.utcnow(), task_type="General", query_team=None, subtasks=[])
+        parent_task = MockParentTask(datetime.utcnow())
+        task.Workflow().InstigatingEventObject = lambda: parent_task
+
+        rcaObj = MockRCAObject()
+
+        setRegRCAReasonStamp(task, 5, rcaObj)
+
+        self.assertEqual(rcaObj.rca_reason, "OPS_DELAY")
+
+if __name__ == "__main__":
+    unittest.main()
