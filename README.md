@@ -1,27 +1,31 @@
 class MockRCAObject:
     def __init__(self, has_stamp=False, initial_stamp=None):
-        self.rca_reason = initial_stamp
-        self.has_stamp = has_stamp
-
-        # Simulated fields with setValue() method
         self.QzDocsCaptureTime = self.MockField()
         self.SourceCreatedTime = self.MockField()
         self.TaskCreationAfterHours = self.MockField()
         self.ValidatorsOnTask = self.MockField()
-        self.RcaStampField = self.MockField()  # Stores the RCA stamp
+        self._rca_stamp = initial_stamp  # Internal storage for RCA stamp value
 
+    @property
     def RcaStamp(self):
-        """✅ Instead of returning a function, directly return the field object"""
-        return self.RcaStampField  # This object supports setValue()
+        # Return a MockField-like object that supports both value retrieval and setting
+        return self.RcaStampField(self)
 
     def write(self):
-        """Simulate writing to a database"""
-        pass  
+        pass  # Simulating a database write operation
 
     class MockField:
-        """A simple field class that supports setValue()"""
-        def __init__(self):
-            self.value = None
+        def __init__(self, parent):
+            self.parent = parent  # Reference to the parent MockRCAObject
 
         def setValue(self, value):
-            self.value = value
+            print(f"Setting value: {value}")  # Debugging check
+            self.parent._rca_stamp = value  # Update the internal storage
+
+        def __call__(self):
+            # When RcaStamp is called as a method, return the value
+            return self.parent._rca_stamp
+
+        def __repr__(self):
+            # For debugging purposes
+            return f"MockField(value={self.parent._rca_stamp})"
