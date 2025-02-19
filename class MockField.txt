@@ -1,0 +1,27 @@
+class MockField:
+    """Simulates a field object with a setValue() method."""
+    def __init__(self):
+        self.value = None
+
+    def setValue(self, value):
+        self.value = value
+
+class MockRCAObject:
+    def __init__(self, has_stamp=False, initial_stamp=None):
+        self.QzDocsCaptureTime = MockField()
+        self.SourceCreatedTime = MockField()
+        self.TaskCreationAfterHours = MockField()
+        self.ValidatorsOnTask = MockField()
+        
+        self.rca_reason = initial_stamp
+        self.has_stamp = has_stamp
+
+    def RcaStamp(self):
+        return self.rca_reason if self.has_stamp else None
+
+    def setValue(self, value):
+        """Set value for RcaStamp"""
+        self.rca_reason = value
+
+    def write(self):
+        pass  # Simulating a database write operation
