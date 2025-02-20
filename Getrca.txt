@@ -1,0 +1,68 @@
+import unittest
+from unittest.mock import patch, MagicMock
+
+# Import functions from your module
+from your_module import getRCAObject, getRCAObjectFromTradeID  
+
+class TestRCAObjectMethods(unittest.TestCase):
+
+    @patch("your_module.OpsConfirmationRca.getRcaObject")  # Mock getRcaObject
+    @patch("your_module.OpsConfirmationRca.createRcaObject")  # Mock createRcaObject
+    def test_getRCAObject_existing_object(self, mock_createRcaObject, mock_getRcaObject):
+        """Test when getRCAObject finds an existing object and does NOT call createRcaObject"""
+
+        # Mock an existing RCA object
+        mock_rcaObj = MagicMock()
+        mock_getRcaObject.return_value = mock_rcaObj
+
+        # Call the function
+        task = MagicMock()
+        db = "mock_db"
+        result = getRCAObject(task, db)
+
+        # Assertions
+        mock_getRcaObject.assert_called_once_with(db, task.BackOfficeID())  # Ensure lookup was done
+        mock_createRcaObject.assert_not_called()  # Ensure createRcaObject was NOT called
+        self.assertEqual(result, mock_rcaObj)  # Ensure it returns the expected object
+
+    @patch("your_module.OpsConfirmationRca.getRcaObject")
+    @patch("your_module.OpsConfirmationRca.createRcaObject")
+    def test_getRCAObject_create_new_object(self, mock_createRcaObject, mock_getRcaObject):
+        """Test when getRCAObject does NOT find an existing object and calls createRcaObject"""
+
+        # Simulate no existing object
+        mock_getRcaObject.return_value = None
+
+        # Mock a newly created RCA object
+        mock_new_rcaObj = MagicMock()
+        mock_createRcaObject.return_value = mock_new_rcaObj
+
+        # Call the function
+        task = MagicMock()
+        db = "mock_db"
+        result = getRCAObject(task, db)
+
+        # Assertions
+        mock_getRcaObject.assert_called_once_with(db, task.BackOfficeID())  # Ensure lookup was done
+        mock_createRcaObject.assert_called_once_with(db, task)  # Ensure createRcaObject was called
+        self.assertEqual(result, mock_new_rcaObj)  # Ensure it returns the newly created object
+
+    @patch("your_module.OpsConfirmationRca.getRcaObject")
+    def test_getRCAObjectFromTradeID(self, mock_getRcaObject):
+        """Test getRCAObjectFromTradeID calls getRcaObject correctly"""
+
+        # Mock an RCA object
+        mock_rcaObj = MagicMock()
+        mock_getRcaObject.return_value = mock_rcaObj
+
+        # Call the function
+        trade_id = "Trade123"
+        db = "mock_db"
+        result = getRCAObjectFromTradeID(trade_id, db)
+
+        # Assertions
+        mock_getRcaObject.assert_called_once_with(db, trade_id)  # Ensure correct call
+        self.assertEqual(result, mock_rcaObj)  # Ensure correct return value
+
+if __name__ == "__main__":
+    unittest.main()
