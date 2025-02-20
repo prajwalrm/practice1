@@ -1,0 +1,94 @@
+import unittest
+from unittest.mock import patch, MagicMock
+import datetime
+
+# Import the function to test
+from your_module import sendUpdateToDrum  
+
+class TestSendUpdateToDrum(unittest.TestCase):
+
+    @patch("your_module.datetime.datetime")  # Mock datetime
+    @patch("your_module.logging.info")  # Mock logging
+    @patch("your_module.MQMessageSender")  # Mock MQ sender
+    @patch("your_module.OpsConfirmationsConfig.getConfig")  # Mock messaging config
+    @patch("your_module.getRcaTemplate")  # Mock RCA template function
+    def test_sendUpdateToDrum_with_rca(self, mock_getRcaTemplate, mock_getConfig, mock_MQMessageSender, mock_logging, mock_datetime):
+        """ Test when queue == 'RCA' and rcaComments is present """
+
+        # Mock datetime behavior
+        mock_datetime.utcnow.return_value = datetime.datetime(2024, 2, 20, 15, 30, 45)
+        mock_datetime.return_value = mock_datetime  # Ensure isofunction works
+        mock_datetime().isoformat.return_value = "2024-02-20T15:30:45"
+
+        # Mock RCA template function
+        mock_getRcaTemplate.return_value = "<rcaTemplate>Mocked</rcaTemplate>"
+
+        # Mock MQ Configuration and Sender
+        mock_mq_config = MagicMock()
+        mock_mq_sender = MagicMock()
+        mock_getConfig.return_value.Drum.return_value = mock_mq_config
+        mock_MQMessageSender.return_value = mock_mq_sender
+
+        # Call the function
+        sendUpdateToDrum(
+            db="mock_db",
+            tradeReference="Trade123",
+            queue="RCA",
+            lastQueue="Queue1",
+            comment="Test Comment",
+            commentUser="User1",
+            workDriver="Driver1",
+            rcaComments="Mock RCA"
+        )
+
+        # Verify RCA template was used
+        mock_getRcaTemplate.assert_called_once_with("Mock RCA")
+
+        # Verify MQ sender was called
+        mock_mq_sender.send.assert_called_once()
+
+        # Verify logging
+        mock_logging.assert_called()
+
+    @patch("your_module.datetime.datetime")
+    @patch("your_module.logging.info")
+    @patch("your_module.MQMessageSender")
+    @patch("your_module.OpsConfirmationsConfig.getConfig")
+    @patch("your_module.getRcaTemplate")
+    def test_sendUpdateToDrum_without_rca(self, mock_getRcaTemplate, mock_getConfig, mock_MQMessageSender, mock_logging, mock_datetime):
+        """ Test when queue is not 'RCA' and no RCA message is added """
+
+        # Mock datetime
+        mock_datetime.utcnow.return_value = datetime.datetime(2024, 2, 20, 15, 30, 45)
+        mock_datetime.return_value = mock_datetime
+        mock_datetime().isoformat.return_value = "2024-02-20T15:30:45"
+
+        # Mock MQ Config and Sender
+        mock_mq_config = MagicMock()
+        mock_mq_sender = MagicMock()
+        mock_getConfig.return_value.Drum.return_value = mock_mq_config
+        mock_MQMessageSender.return_value = mock_mq_sender
+
+        # Call function with queue != 'RCA'
+        sendUpdateToDrum(
+            db="mock_db",
+            tradeReference="Trade123",
+            queue="OtherQueue",
+            lastQueue="Queue1",
+            comment="Test Comment",
+            commentUser="User1",
+            workDriver="Driver1",
+            rcaComments=None  # No RCA message
+        )
+
+        # Ensure RCA template was NOT called
+        mock_getRcaTemplate.assert_not_called()
+
+        # Ensure MQ sender was called
+        mock_mq_sender.send.assert_called_once()
+
+        # Verify logging
+        mock_logging.assert_called()
+
+if __name__ == "__main__":
+    unittest.main()
