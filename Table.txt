@@ -1,0 +1,86 @@
+import unittest
+from unittest.mock import patch, MagicMock
+import datetime
+
+# Import the function to be tested
+from your_module import getRCAEligibleTable  
+
+class TestGetRCAEligibleTable(unittest.TestCase):
+
+    @patch("your_module.sandra.connect")  # Mock database connection
+    @patch("your_module.Where")  # Mock Where filtering
+    @patch("your_module.logger.info")  # Mock logger
+    def test_getRCAEligibleTable_normal_case(self, mock_logger, mock_Where, mock_connect):
+        """Test getRCAEligibleTable without additional purge filtering"""
+
+        # Create a mock database connection
+        mock_db = MagicMock()
+        mock_rtEnv = MagicMock()
+        mock_rtTable = MagicMock()
+
+        # Configure `sandra.connect` return value
+        mock_connect.return_value = mock_db
+        mock_db.__getitem__.return_value = mock_rtEnv  # Mock db['EnvQzRT']
+
+        # Configure table mock
+        mock_rtEnv.Table.return_value = mock_rtTable
+        mock_rtTable.Table.return_value = mock_rtTable  # Table() should return itself
+        mock_rtTable.nRows.return_value = 100  # Assume 100 rows in table
+
+        # Mock Where filtering behavior
+        mock_filter = MagicMock()
+        mock_filter.qztable.return_value = mock_rtTable  # Simulate filtering
+
+        mock_Where.return_value = mock_filter  # Return mock filter when `Where` is called
+
+        # Call the function
+        result = getRCAEligibleTable("mock_db")
+
+        # Assertions
+        self.assertEqual(result.nRows(), 100)  # Ensure function returns correct filtered table
+        mock_connect.assert_called_once_with("mock_db")  # Ensure DB connection is made
+        mock_logger.assert_called()  # Ensure logging is executed
+
+    @patch("your_module.sandra.connect")
+    @patch("your_module.Where")
+    @patch("your_module.logger.info")
+    @patch("your_module.datetime.datetime")  # Mock datetime for purge filtering
+    def test_getRCAEligibleTable_with_purge_filter(self, mock_datetime, mock_logger, mock_Where, mock_connect):
+        """Test getRCAEligibleTable when dbName requires purge filtering"""
+
+        # Mock datetime for filtering
+        mock_datetime.datetime.return_value = datetime.datetime(2024, 11, 6)
+
+        # Create a mock database connection
+        mock_db = MagicMock()
+        mock_rtEnv = MagicMock()
+        mock_rtTable = MagicMock()
+
+        # Configure `sandra.connect` return value
+        mock_connect.return_value = mock_db
+        mock_db.__getitem__.return_value = mock_rtEnv  # Mock db['EnvQzRT']
+
+        # Configure table mock
+        mock_rtEnv.Table.return_value = mock_rtTable
+        mock_rtTable.Table.return_value = mock_rtTable  # Table() should return itself
+        mock_rtTable.nRows.return_value = 50  # Assume filtering results in 50 rows
+
+        # Mock Where filtering behavior
+        mock_filter = MagicMock()
+        mock_purge_filter = MagicMock()
+        mock_filter.qztable.return_value = mock_rtTable  # First filter
+        mock_purge_filter.qztable.return_value = mock_rtTable  # Second filter (purge)
+
+        # Ensure `Where` returns different filters based on call context
+        mock_Where.side_effect = [mock_filter, mock_purge_filter]
+
+        # Call the function with a db that requires filtering
+        result = getRCAEligibleTable("ops_dress")
+
+        # Assertions
+        self.assertEqual(result.nRows(), 50)  # Ensure correct row count
+        mock_connect.assert_called_once_with("ops_dress")  # Ensure correct DB name
+        mock_logger.assert_called()  # Ensure logging is executed
+
+if __name__ == "__main__":
+    unittest.main()
