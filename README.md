@@ -1,31 +1,23 @@
-class MockRCAObject:
-    def __init__(self, has_stamp=False, initial_stamp=None):
-        self.QzDocsCaptureTime = self.MockField()
-        self.SourceCreatedTime = self.MockField()
-        self.TaskCreationAfterHours = self.MockField()
-        self.ValidatorsOnTask = self.MockField()
-        self._rca_stamp = initial_stamp  # Internal storage for RCA stamp value
+from qz.core.spongebob import Job, init
+from datetime import datetime, timedelta
 
-    @property
-    def RcaStamp(self):
-        # Return a MockField-like object that supports both value retrieval and setting
-        return self.RcaStampField(self)
+# Initialize SpongeBob framework
+init(sourcePath="/path/to/jobs", dryRun=False, maxJobs=10, host="localhost")
 
-    def write(self):
-        pass  # Simulating a database write operation
+# Define batch dates (10 days in the past)
+start_date = datetime.today() - timedelta(days=10)
+batch_dates = [(start_date + timedelta(days=i)).strftime("%Y-%m-%d") for i in range(10)]
 
-    class MockField:
-        def __init__(self, parent):
-            self.parent = parent  # Reference to the parent MockRCAObject
+# Create jobs for each batch date
+jobs = []
+for batch_date in batch_dates:
+    job = Job(
+        name=f"NextDayUTI_{batch_date}",
+        command=f"python /path/to/nextday_uti_determination.py {batch_date}",
+        enabled=True
+    )
+    jobs.append(job)
 
-        def setValue(self, value):
-            print(f"Setting value: {value}")  # Debugging check
-            self.parent._rca_stamp = value  # Update the internal storage
-
-        def __call__(self):
-            # When RcaStamp is called as a method, return the value
-            return self.parent._rca_stamp
-
-        def __repr__(self):
-            # For debugging purposes
-            return f"MockField(value={self.parent._rca_stamp})"
+# Execute jobs
+for job in jobs:
+    job.run()
